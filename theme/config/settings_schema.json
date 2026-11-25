@@ -1,0 +1,4 @@
+[
+  {"name":"theme_info","theme_name":"Morrow & Moss","theme_version":"1.0.0","theme_author":"Harry Denesia","theme_documentation_url":"https://shopify.dev/docs/storefronts/themes"},
+  {"name":"Brand colors","settings":[{"type":"color","id":"color_ink","label":"Ink","default":"#24382d"},{"type":"color","id":"color_cream","label":"Cream","default":"#f5f3ec"},{"type":"color","id":"color_sage","label":"Sage","default":"#dfe7d8"}]}
+]
