@@ -30,6 +30,10 @@ The result is clamped to 0–100. Days of coverage is `available quantity / aver
 - **History:** Inventory snapshots preserve dated stock observations; activity logs capture user/system actions; restock plans represent an editable workflow rather than transient UI state.
 - **Embedded auth:** Shopify App Bridge ID tokens are exchanged server-side for offline Admin API access tokens. Secrets never enter the browser bundle.
 
+## Shopify synchronization
+
+The embedded app uses App Bridge ID tokens for browser-to-server authentication. The API exchanges the ID token server-side for an offline Admin API access token. The Inventory view exposes a manual product synchronization action when demo mode is disabled. It fetches the first page of Shopify products and variants, aggregates available inventory across variants, upserts shop-scoped product records, writes inventory snapshots, and records an activity event. This is an initial integration, not a complete catalog sync: cursor pagination, location-level inventory, webhook-driven updates, and order-derived sales velocity remain future work.
+
 ## Tradeoffs
 
 - The first iteration uses clearly labelled mock data to keep development moving before a Shopify store and app credentials exist.
@@ -39,7 +43,7 @@ The result is clamped to 0–100. Days of coverage is `available quantity / aver
 
 ## What I would improve with more time
 
-1. Implement Shopify GraphQL product, variant, inventory, and order synchronization plus webhooks with idempotent processing.
+1. Extend the initial Shopify GraphQL product/inventory sync with cursor pagination, location-level inventory, order-derived sales velocity, and webhooks with idempotent processing.
 2. Model inventory per variant and location, and calculate sales velocity from fulfilled/eligible orders over configurable periods.
 3. Encrypt access tokens at rest, rotate secrets, implement uninstall cleanup, webhook HMAC verification, rate-limit/backoff handling, and tenant isolation tests.
 4. Add supplier records, purchase-order export, CSV import, and configurable safety-stock policies.

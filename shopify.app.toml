@@ -1,0 +1,14 @@
+# Replace the placeholders with values from your Shopify Dev Dashboard.
+client_id = "YOUR_SHOPIFY_APP_CLIENT_ID"
+name = "StockPilot - Morrow & Moss"
+application_url = "https://YOUR_PUBLIC_HTTPS_TUNNEL_HOST"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+scopes = "read_products,read_inventory"
+
+[webhooks]
+api_version = "2026-10"

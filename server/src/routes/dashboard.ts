@@ -1,10 +1,108 @@
-import {Router} from 'express';
-import {db} from '../db/client.js';
-import {shops,products,activityLogs} from '../db/schema.js';
-import {eq,desc} from 'drizzle-orm';
-import {scoreInventory} from '../services/scoring.js';
-export const dashboardRouter=Router();
-const demo=[{id:1,title:'Monstera Deliciosa',sku:'PLT-MON-001',available:8,dailySales:4,leadTimeDays:5,unitCost:28},{id:2,title:'Peace Lily',sku:'PLT-PEA-004',available:5,dailySales:3,leadTimeDays:7,unitCost:18},{id:3,title:'Snake Plant',sku:'PLT-SNA-002',available:30,dailySales:2,leadTimeDays:4,unitCost:16},{id:4,title:'Ceramic Planter — Sand',sku:'POT-CER-008',available:12,dailySales:1.2,leadTimeDays:10,unitCost:14},{id:5,title:'Botanical Care Kit',sku:'KIT-BOT-003',available:42,dailySales:1.5,leadTimeDays:6,unitCost:12}];
-const demoActivity=[{id:1,action:'Inventory risk detected',detail:'Monstera Deliciosa has 2 days of stock coverage.',createdAt:new Date().toISOString()},{id:2,action:'Stock level updated',detail:'Peace Lily inventory snapshot recorded.',createdAt:new Date(Date.now()-3600000).toISOString()},{id:3,action:'Recommendation generated',detail:'Snake Plant is currently within healthy coverage.',createdAt:new Date(Date.now()-7200000).toISOString()}];
-dashboardRouter.get('/',async(_req,res,next)=>{try{if(process.env.MOCK_MODE!=='false'){const ranked=demo.map(p=>({...p,...scoreInventory(p)})).sort((a,b)=>b.priority-a.priority);return res.json({products:ranked,summary:{totalProducts:ranked.length,critical:ranked.filter(p=>p.status==='Critical').length,watch:ranked.filter(p=>p.status==='Watch').length,healthy:ranked.filter(p=>p.status==='Healthy').length,estimatedReorderValue:ranked.filter(p=>p.status!=='Healthy').reduce((s,p)=>s+Math.max(0,Math.ceil(p.dailySales*(p.leadTimeDays+7)-p.available))*p.unitCost,0)},activity:demoActivity});}
-const shopDomain=String(_req.shopDomain??'');if(!shopDomain)return res.status(401).json({error:'Shop context required'});const [shop]=await db.select().from(shops).where(eq(shops.shopDomain,shopDomain)).limit(1);if(!shop)return res.status(404).json({error:'Shop not installed'});const rows=await db.select().from(products).where(eq(products.shopId,shop.id));const ranked=rows.map(p=>({...p,dailySales:Number(p.dailySales),...scoreInventory({available:p.available,dailySales:Number(p.dailySales),leadTimeDays:p.leadTimeDays})})).sort((a,b)=>b.priority-a.priority);const logs=await db.select().from(activityLogs).where(eq(activityLogs.shopId,shop.id)).orderBy(desc(activityLogs.createdAt)).limit(8);return res.json({products:ranked,summary:{totalProducts:ranked.length,critical:ranked.filter(p=>p.status==='Critical').length,watch:ranked.filter(p=>p.status==='Watch').length,healthy:ranked.filter(p=>p.status==='Healthy').length,estimatedReorderValue:0},activity:logs});}catch(e){next(e)}});
+
+import { Router } from 'express';
+import { db } from '../db/client.js';
+import { shops, products, activityLogs } from '../db/schema.js';
+import { eq, desc } from 'drizzle-orm';
+import { scoreInventory } from '../services/scoring.js';
+
+export const dashboardRouter = Router();
+
+const DEMO_SHOP_DOMAIN = 'morrow-moss-demo.myshopify.com';
+
+dashboardRouter.get('/', async (req, res, next) => {
+  try {
+    const isDemo = process.env.MOCK_MODE !== 'false';
+
+    const shopDomain = isDemo
+      ? DEMO_SHOP_DOMAIN
+      : String(req.shopDomain ?? '');
+
+    if (!shopDomain) {
+      return res.status(401).json({ error: 'Shop context required' });
+    }
+
+    const [shop] = await db
+      .select()
+      .from(shops)
+      .where(eq(shops.shopDomain, shopDomain))
+      .limit(1);
+
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not installed' });
+    }
+
+    const rows = await db
+      .select()
+      .from(products)
+      .where(eq(products.shopId, shop.id));
+
+    const ranked = rows
+      .map((product) => {
+        const dailySales = Number(product.dailySales);
+        const unitCost = Number(product.unitCost);
+
+        return {
+          id: product.id,
+          title: product.title,
+          sku: product.sku,
+          available: product.available,
+          dailySales,
+          leadTimeDays: product.leadTimeDays,
+          unitCost,
+          ...scoreInventory({
+            available: product.available,
+            dailySales,
+            leadTimeDays: product.leadTimeDays,
+          }),
+        };
+      })
+      .sort((a, b) => b.priority - a.priority);
+
+    const logs = await db
+      .select()
+      .from(activityLogs)
+      .where(eq(activityLogs.shopId, shop.id))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(8);
+
+    const critical = ranked.filter(
+      (product) => product.status === 'Critical',
+    ).length;
+
+    const watch = ranked.filter(
+      (product) => product.status === 'Watch',
+    ).length;
+
+    const healthy = ranked.filter(
+      (product) => product.status === 'Healthy',
+    ).length;
+
+    const estimatedReorderValue = ranked
+      .filter((product) => product.status !== 'Healthy')
+      .reduce((total, product) => {
+        const recommendedQuantity = Math.max(
+          0,
+          Math.ceil(
+            product.dailySales * (product.leadTimeDays + 7) -
+              product.available,
+          ),
+        );
+
+        return total + recommendedQuantity * product.unitCost;
+      }, 0);
+
+    return res.json({
+      products: ranked,
+      summary: {
+        totalProducts: ranked.length,
+        critical,
+        watch,
+        healthy,
+        estimatedReorderValue,
+      },
+      activity: logs,
+    });
+  } catch (error) {
+    next(error);
+  }
+});

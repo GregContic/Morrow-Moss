@@ -2,7 +2,10 @@
   "name": "morrow-moss-stockpilot",
   "private": true,
   "version": "1.0.0",
-  "workspaces": ["app", "server"],
+  "workspaces": [
+    "app",
+    "server"
+  ],
   "scripts": {
     "dev": "concurrently -k \"npm run dev -w server\" \"npm run dev -w app\"",
     "build": "npm run build -w app && npm run build -w server",
@@ -10,5 +13,10 @@
     "db:migrate": "npm run db:migrate -w server",
     "theme:check": "shopify theme check --path theme"
   },
-  "devDependencies": {"concurrently":"^9.1.2"}
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.4"
+  }
 }
